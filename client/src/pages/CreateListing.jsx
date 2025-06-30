@@ -1,11 +1,6 @@
 import { useState } from 'react';
-import {
-  getDownloadURL,
-  getStorage,
-  ref,
-  uploadBytesResumable,
-} from 'firebase/storage';
-import { app } from '../firebase';
+
+import axios from 'axios';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 
@@ -50,10 +45,11 @@ export default function CreateListing() {
           setImageUploadError(false);
           setUploading(false);
         })
-        .catch((err) => {
-          setImageUploadError('Image upload failed (2 mb max per image)');
-          setUploading(false);
-        });
+       .catch((err) => {
+  console.error('Upload error:', err);
+  setImageUploadError('Image upload failed. See console for details.');
+});
+
     } else {
       setImageUploadError('You can only upload 6 images per listing');
       setUploading(false);
@@ -61,29 +57,24 @@ export default function CreateListing() {
   };
 
   const storeImage = async (file) => {
-    return new Promise((resolve, reject) => {
-      const storage = getStorage(app);
-      const fileName = new Date().getTime() + file.name;
-      const storageRef = ref(storage, fileName);
-      const uploadTask = uploadBytesResumable(storageRef, file);
-      uploadTask.on(
-        'state_changed',
-        (snapshot) => {
-          const progress =
-            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          console.log(`Upload is ${progress}% done`);
-        },
-        (error) => {
-          reject(error);
-        },
-        () => {
-          getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-            resolve(downloadURL);
-          });
-        }
+  return new Promise(async (resolve, reject) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', 'react_upload'); // your preset
+    formData.append('cloud_name', 'dvlesxqpb'); // your actual cloud name
+
+    try {
+      const res = await axios.post(
+        'https://api.cloudinary.com/v1_1/dvlesxqpb/image/upload', // ✅ correct URL
+        formData
       );
-    });
-  };
+      resolve(res.data.secure_url);
+    } catch (err) {
+      console.error('Upload error:', err);
+      reject(err);
+    }
+  });
+};
 
   const handleRemoveImage = (index) => {
     setFormData({
