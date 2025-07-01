@@ -1,5 +1,6 @@
 import { useSelector } from 'react-redux';
 import { useRef, useState, useEffect } from 'react';
+
  /*import {
   getDownloadURL,
   getStorage,
@@ -129,7 +130,9 @@ export default function Profile() {
   const handleShowListings = async () => {
     try {
       setShowListingsError(false);
-      const res = await fetch(`/api/user/listings/${currentUser._id}`);
+    const res = await fetch(`/api/user/listings/${currentUser._id}`, {
+  credentials: 'include',
+});
       const data = await res.json();
       if (data.success === false) {
         setShowListingsError(true);
