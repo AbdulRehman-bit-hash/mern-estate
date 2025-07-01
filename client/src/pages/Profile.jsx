@@ -1,7 +1,12 @@
 import { useSelector } from 'react-redux';
 import { useRef, useState, useEffect } from 'react';
-  import axios from 'axios'
-
+ /*import {
+  getDownloadURL,
+  getStorage,
+  ref,
+  uploadBytesResumable,
+} from 'firebase/storage';
+import { app } from '../firebase'; */
 import {
   updateUserStart,
   updateUserSuccess,
@@ -25,7 +30,11 @@ export default function Profile() {
   const [userListings, setUserListings] = useState([]);
   const dispatch = useDispatch();
 
-  
+  // firebase storage
+  // allow read;
+  // allow write: if
+  // request.resource.size < 2 * 1024 * 1024 &&
+  // request.resource.contentType.matches('image/.*')
 
   useEffect(() => {
     if (file) {
@@ -33,53 +42,29 @@ export default function Profile() {
     }
   }, [file]);
 
-; // Add at the top if not already imported
+  const handleFileUpload = (file) => {
+    const storage = getStorage(app);
+    const fileName = new Date().getTime() + file.name;
+    const storageRef = ref(storage, fileName);
+    const uploadTask = uploadBytesResumable(storageRef, file);
 
-const handleFileUpload = async (file) => {
-  const formDataUpload = new FormData();
-  formDataUpload.append('file', file);
-  formDataUpload.append('upload_preset', 'react_upload');
-  formDataUpload.append('folder', 'CreateListing');
-
-  try {
-    setFileUploadError(false);
-    setFilePerc(0);
-    const res = await fetch(
-      'https://api.cloudinary.com/v1_1/dvlesxqpb/image/upload',
-      {
-        method: 'POST',
-        body: formDataUpload,
+    uploadTask.on(
+      'state_changed',
+      (snapshot) => {
+        const progress =
+          (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        setFilePerc(Math.round(progress));
+      },
+      (error) => {
+        setFileUploadError(true);
+      },
+      () => {
+        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) =>
+          setFormData({ ...formData, avatar: downloadURL })
+        );
       }
     );
-    const data = await res.json();
-
-    // Immediately update local state
-    setFormData((prev) => ({ ...prev, avatar: data.secure_url }));
-    setFilePerc(100);
-
-    // Send update to backend
-    const updateRes = await fetch(`/api/user/update/${currentUser._id}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ avatar: data.secure_url }),
-    });
-
-    const updatedUser = await updateRes.json();
-    if (updateRes.ok && updatedUser) {
-      dispatch(updateUserSuccess(updatedUser));
-      setUpdateSuccess(true); // ✅ show "Image successfully uploaded!" message
-    } else {
-      throw new Error('Failed to update avatar in DB');
-    }
-  } catch (err) {
-    console.error('Upload failed:', err);
-    setFileUploadError(true);
-  }
-};
-
-
-
-
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.id]: e.target.value });
@@ -93,7 +78,6 @@ const handleFileUpload = async (file) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-            Authorization: `Bearer ${currentUser.access_token}`,
         },
         body: JSON.stringify(formData),
       });
